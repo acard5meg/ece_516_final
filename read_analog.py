@@ -3,7 +3,9 @@ import serial
 # https://pyserial.readthedocs.io/en/latest/pyserial_api.html
 
 import matplotlib.pyplot as plt
-import datetime
+from datetime import datetime
+import csv
+
 """
 Example of serial monitor data with timestamp from Arduino
 22:27:29.230 -> 80,958,745
@@ -32,9 +34,10 @@ IBI -> interbeat interval
 
 """
 
+# Testing how serial port interfaces with Python
+""" 
 if __name__ == "__main__":
-    port = '/dev/ttyACM0'
-    baud = 115200
+    port = 
     # port immediately opened on object creation
     ser = serial.Serial(port, baud)
     idx = 0
@@ -63,7 +66,8 @@ if __name__ == "__main__":
     print(ans[:bpm_idx].decode('utf-8'))
     print((time.time()-start_time))
     print(ans)
-    """
+
+    ##################################
     output from ser.readline()
     b'65,994,491\r\n'
     the class is bytes
@@ -85,3 +89,66 @@ if __name__ == "__main__":
     """
 
     
+def read_bpm(port_output) -> int:
+    """
+    Converts serial port output to BPM
+    Output of serial port format: b'65,994,491\r\n'   
+    BPM,IBI,PulseSensor Raw Signal
+
+    IF WE CAN MANIPULATE DATA BEFORE THE TRANSFER
+    WE COULD SAVE BY AVOIDING THE LOOP
+    """
+    bpm_idx = 0
+    for i in range(len(port_output)):
+        if port_output[i] == 44:
+            bpm_idx = i
+            break
+    return port_output[:bpm_idx].decode('utf-8')
+
+def open_port(port, baud) -> serial:
+    """
+    Opens serial connection to port at a bit per second rate of baud
+    """
+
+    return serial.Serial(port, baud)
+
+def create_csv(file_name, header):
+    """
+    Creates a new csv file named file_name
+    Adds the header which must be a list
+    """
+    with open(file_name, 'w', newline='') as file:
+        csv_writer = csv.writer(file)
+        csv_writer.writerow(header)
+
+def write_to_csv(file_name, row):
+    """
+    Writes to an already created csv
+    """
+    with open(file_name, 'a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(row)
+
+def main():
+    ser = open_port('/dev/ttyACM0', 115200)
+
+    # idx = 0
+
+    create_csv("heart_beat_data.csv",["time_since_start", "BPM"])
+    ## There is a time period at the beginning 
+    ## regardless of using Arduino's serial monitor or Python
+    ## where the monitor has 0 as BPM
+    ## This seemed to reduce the number of 0s but it didn't fix the problem
+    time.sleep(4) 
+    start_time = time.time()
+    elapsed_time = 0
+
+    while elapsed_time < 30:
+        bpm = read_bpm(ser.readline())
+        elapsed_time = time.time() - start_time
+        write_to_csv("heart_beat_data.csv", [elapsed_time, bpm])    
+
+    ser.close()
+
+if __name__ == "__main__":
+    main()
